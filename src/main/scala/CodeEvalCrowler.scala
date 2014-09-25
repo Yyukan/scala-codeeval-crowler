@@ -1,4 +1,4 @@
-import uk.co.bigbeeconsultants.http.HttpClient
+import uk.co.bigbeeconsultants.http.{HttpBrowser, HttpClient}
 import uk.co.bigbeeconsultants.http.header.HeaderName
 import uk.co.bigbeeconsultants.http.response.Response
 import java.net.URL
@@ -21,9 +21,11 @@ object CodeEvalCrowler extends App {
 
   println(s"Connecting $CODE_EVAL_URL$CODE_EVAL_LOGIN username ${args(0)}")
 
-  val loginPage = forward(CODE_EVAL_URL + CODE_EVAL_LOGIN)
-
-
+  val loginResponse = forward(CODE_EVAL_URL + CODE_EVAL_LOGIN)
+  println("Headers")
+  loginResponse.headers.foreach( x => println(x))
+  println("Cookies")
+  loginResponse.cookies.foreach( x => println(x) )
 
 
 //  println(loginPage.getHeaders)
@@ -65,10 +67,10 @@ object CodeEvalCrowler extends App {
    * Forwards until login page is reached
    */
   def forward(link: String): Response = {
-    val httpClient = new HttpClient
+    val httpClient = new HttpClient()
     val response: Response = httpClient.get(new URL(link))
     println(response.status)
-    println(response.body.asString)
+    //println(response.body.asString)
 
     println(s"Connecting $link ... ${response.status}" )
 
