@@ -1,7 +1,7 @@
 import java.util
 
 import com.ning.http.client.cookie.Cookie
-import com.ning.http.client.{FluentCaseInsensitiveStringsMap, Response}
+import com.ning.http.client.{Request, FluentCaseInsensitiveStringsMap, Response}
 import dispatch._, Defaults._
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -30,7 +30,7 @@ object CodeEvalCrowler extends App {
 
   Http.configure(_ setFollowRedirects true)
 
-  val loginResponse: Response = forward(CODE_EVAL_URL + CODE_EVAL_LOGIN)
+  //val loginResponse: Response = forward(CODE_EVAL_URL + CODE_EVAL_LOGIN)
 
   val req = url("https://www.codeeval.com/accounts/login/")
 
@@ -39,9 +39,9 @@ object CodeEvalCrowler extends App {
   val myPostWithParams = myPost << Map("username" -> args(0), "password" -> args(1), "email_not_activated" -> "email",
     "next" -> "")
 
-  cookies(loginResponse).foreach(cookie => myPostWithParams.addCookie(cookie))
+  //val myPPP = addCookies(cookies(loginResponse), myPostWithParams)
 
-  println(myPostWithParams)
+  println("Post request " + myPostWithParams.toRequest)
   val result = Http(myPostWithParams > (x => x))
 
   val response: Response = result()
@@ -49,16 +49,38 @@ object CodeEvalCrowler extends App {
 
   val req1 = url(response.getHeader("Location"))
 
-  cookies(response).foreach(cookie => req1.addCookie(cookie))
+  val req2 = addCookies(cookies(response), req1)
 
-  val result1 = Http(req1 > (x => x))
+  val result1 = Http(req2 > (x => x))
 
   val response1: Response = result1()
   println(response1.getStatusCode)
 
+
+  val req3 = url(response.getHeader("Location"))
+
+  val req4 = addCookies(cookies(response), req3)
+
+  val result3 = Http(req4 > (x => x))
+
+  val response2: Response = result3()
+  println(response2.getStatusCode)
+
+
+
+
   //println(b.getResponseBody)
 
   System.exit(-1)
+
+  def addCookies(cookies : mutable.Buffer[Cookie], req: Req) : Req = {
+    var result = req
+    cookies.foreach(cookie => result = result.addCookie(cookie))
+    println("Post" + result.toRequest)
+    println(result.toRequest.getCookies)
+    result
+  }
+
   /**
    * Forwards until login page is reached
    */
