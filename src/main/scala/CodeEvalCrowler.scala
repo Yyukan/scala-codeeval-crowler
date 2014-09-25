@@ -1,7 +1,14 @@
-import uk.co.bigbeeconsultants.http.{HttpBrowser, HttpClient}
-import uk.co.bigbeeconsultants.http.header.HeaderName
-import uk.co.bigbeeconsultants.http.response.Response
-import java.net.URL
+import java.util
+
+import com.ning.http.client.cookie.Cookie
+import com.ning.http.client.{FluentCaseInsensitiveStringsMap, Response}
+import dispatch._, Defaults._
+import scala.collection.mutable
+import scala.concurrent.Await
+import scala.util.{Success, Failure}
+import scala.concurrent.duration._
+import scala.xml.{Text, NodeSeq}
+import scala.collection.JavaConversions._
 
 object CodeEvalCrowler extends App {
 
@@ -21,74 +28,61 @@ object CodeEvalCrowler extends App {
 
   println(s"Connecting $CODE_EVAL_URL$CODE_EVAL_LOGIN username ${args(0)}")
 
-  val loginResponse = forward(CODE_EVAL_URL + CODE_EVAL_LOGIN)
-  println("Headers")
-  loginResponse.headers.foreach( x => println(x))
-  println("Cookies")
-  loginResponse.cookies.foreach( x => println(x) )
+  Http.configure(_ setFollowRedirects true)
 
+  val loginResponse: Response = forward(CODE_EVAL_URL + CODE_EVAL_LOGIN)
 
-//  println(loginPage.getHeaders)
-//  println(loginPage.getHeader("Set-Cookie"))
-//
-//  val loginRequest = url(CODE_EVAL_URL + CODE_EVAL_LOGIN)
-//    .secure.POST.setContentType("application/x-www-form-urlencoded", "UTF8") << Map("username" -> args(0),
-//    "password" -> args(1),
-//    "email_not_activated" -> "email", "next" -> "")
+  val req = url("https://www.codeeval.com/accounts/login/")
 
+  val myPost: Req = req.secure.POST.setContentType("application/x-www-form-urlencoded", "UTF8")
 
+  val myPostWithParams = myPost << Map("username" -> args(0), "password" -> args(1), "email_not_activated" -> "email",
+    "next" -> "")
 
-  //val cookie: Cookie = toSessionCookie(loginPage.getHeader("Set-Cookie"))
+  cookies(loginResponse).foreach(cookie => myPostWithParams.addCookie(cookie))
 
-  //loginRequest.addCookie(cookie)
+  println(myPostWithParams)
+  val result = Http(myPostWithParams > (x => x))
 
-//  println(loginPage.getCookies)
-//
-//  System.exit(-1)
-//
-//  val result = Http(loginRequest > (x => x))
-//
-//  val response: Response = result()
-//  println(response.getStatusCode)
-//  val b = forward(response.getHeader("Location"))
+  val response: Response = result()
+  println(response.getStatusCode)
+
+  val req1 = url(response.getHeader("Location"))
+
+  cookies(response).foreach(cookie => req1.addCookie(cookie))
+
+  val result1 = Http(req1 > (x => x))
+
+  val response1: Response = result1()
+  println(response1.getStatusCode)
+
   //println(b.getResponseBody)
 
-//  def toSessionCookie(string : String) : Any = {
-//    string.split(";") match {
-//      case Array(a, b, c, d, e) =>
-    //    public static Cookie newValidCookie(String name, String value, String domain, String rawValue, String path,
-    //  long expires, int maxAge, boolean secure, boolean httpOnly) {
-
-          //Cookie.newValidCookie()
-//    }
-//  }
-
+  System.exit(-1)
   /**
    * Forwards until login page is reached
    */
   def forward(link: String): Response = {
-    val httpClient = new HttpClient()
-    val response: Response = httpClient.get(new URL(link))
-    println(response.status)
-    //println(response.body.asString)
+    val svc = url(link)
 
-    println(s"Connecting $link ... ${response.status}" )
+    val result = Http(svc > (x => x))
+    val response: Response = result()
 
-    if (response.status.code.toInt == 301) {
-      forward(response.headers.get(new HeaderName("Location")).get.toString())
-    } else {
-      response
-    }
-    //    val request = url(link)
-    //
-    //    val result = Http(request > (x => x))
-    //    val response: Response = result()
-    //
-    //    println(s"Connecting $link ... ${response.getStatusCode}" )
-    //
-    //    if (response.getStatusCode == 301) forward(response.getHeader("Location"))
-    //    else response
-    //  }
+    println(s"Connecting $link ... ${response.getStatusCode}" )
+
+    if (response.getStatusCode == 301) forward(response.getHeader("Location"))
+    else response
+  }
+
+  def cookies(response : Response) : mutable.Buffer[Cookie] = {
+    response.getHeaders("Set-Cookie").map((header: String) => {
+      println(header)
+      val split = header.split(";").map(_.trim)
+      val name = split(0).split("=")(0)
+      val value = split(0).split("=")(1)
+
+      Cookie.newValidCookie(name, value, "", value, "/", 7200000000L, 31536000, true, true)
+    })
   }
 
 }
