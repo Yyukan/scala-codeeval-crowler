@@ -1,7 +1,7 @@
 import java.util
 
 import com.ning.http.client.cookie.Cookie
-import com.ning.http.client.{Request, FluentCaseInsensitiveStringsMap, Response}
+import com.ning.http.client.{RequestBuilder, Request, FluentCaseInsensitiveStringsMap, Response}
 import dispatch._, Defaults._
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -28,56 +28,87 @@ object CodeEvalCrowler extends App {
 
   println(s"Connecting $CODE_EVAL_URL$CODE_EVAL_LOGIN username ${args(0)}")
 
-  Http.configure(_ setFollowRedirects true)
+  // 301
+  val request1 = url("https://www.codeeval.com/accounts/login").secure
+  val response1 = doRequest(request1)
+  // 301
+  val request2 = addCookies(cookies(response1), url(response1.getHeader("Location")))
+  val response2 = doRequest(request2)
+  // 200 - login form
+  val request3 = addCookies(cookies(response2), url(response2.getHeader("Location")))
+  val response3 = doRequest(request3)
 
-  //val loginResponse: Response = forward(CODE_EVAL_URL + CODE_EVAL_LOGIN)
+  // post login form
+  val headers = Map(
+    "User-Agent" -> "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/37.0.2062.120 Chrome/37.0.2062.120 Safari/537.36",
+    "Referer" -> "https://www.codeeval.com/accounts/login/",
+    "Origin" -> "https://www.codeeval.com",
+    "Content-Type" -> "application/x-www-form-urlencoded",
+    "Accept" -> "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Encoding" -> "gzip,deflate",
+    "Accept-Language" -> "en-US,en;q=0.8,ru;q=0.6,uk;q=0.4",
+    "Cache-Control" -> "max-age=0",
+    "Connection" -> "keep-alive",
+    "Content-Length" -> "66"
+  )
+  val params = Map("username" -> args(0), "password" -> args(1), "email_not_activated" -> "email", "next" -> "")
 
-  val req = url("https://www.codeeval.com/accounts/login/")
+  // 302 location http://www.codeeval.com/dashboard/
+  val request4 = addCookies(cookies(response3), url("https://www.codeeval.com/accounts/login/").POST << params <:<
+    headers)
+  val response4 = doRequest(request4)
 
-  val myPost: Req = req.secure.POST.setContentType("application/x-www-form-urlencoded", "UTF8")
+  // 301
+  val request5 = addCookies(cookies(response4), url("http://www.codeeval.com/dashboard/") <:< headers)
+  val response5 = doRequest(request5)
 
-  val myPostWithParams = myPost << Map("username" -> args(0), "password" -> args(1), "email_not_activated" -> "email",
-    "next" -> "")
-
-  //val myPPP = addCookies(cookies(loginResponse), myPostWithParams)
-
-  println("Post request " + myPostWithParams.toRequest)
-  val result = Http(myPostWithParams > (x => x))
-
-  val response: Response = result()
-  println(response.getStatusCode)
-
-  val req1 = url(response.getHeader("Location"))
-
-  val req2 = addCookies(cookies(response), req1)
-
-  val result1 = Http(req2 > (x => x))
-
-  val response1: Response = result1()
-  println(response1.getStatusCode)
-
-
-  val req3 = url(response.getHeader("Location"))
-
-  val req4 = addCookies(cookies(response), req3)
-
-  val result3 = Http(req4 > (x => x))
-
-  val response2: Response = result3()
-  println(response2.getStatusCode)
-
+  val request6 = addCookies(cookies(response4), url("https://www.codeeval.com/dashboard/").secure)
+  val response6 = doRequest(request6)
 
 
-
-  //println(b.getResponseBody)
 
   System.exit(-1)
+
+  def doRequest(request: Req) : Response = {
+    showRequest(request)
+
+    val future: Future[Response] = Http(request)
+    val response: Response = future()
+
+    showResponse(response)
+
+    response
+  }
+
+  def showRequest(req: Req) = {
+    println(s"Request ===========================")
+    val request : Request = req.toRequest
+
+    println("Url: " + request.getUrl)
+    println("Params: " + request.getParams)
+    println("Headers: " + request.getHeaders)
+    println("Cookies : " + request.getCookies)
+  }
+
+  def showResponse(response: Response) = {
+    println(s"Response ===========================")
+    println("Uri: " + response.getUri)
+    println("Status code: " + response.getStatusCode)
+    println("Content type: " + response.getContentType)
+
+    val headers: FluentCaseInsensitiveStringsMap = response.getHeaders
+
+    for (name <- headers.keySet()) {
+      val value = headers.get(name)
+      println("Header : [" + name + "] values [" + value.mkString + "]")
+    }
+
+    println("Response body size: " + response.getResponseBody.size)
+  }
 
   def addCookies(cookies : mutable.Buffer[Cookie], req: Req) : Req = {
     var result = req
     cookies.foreach(cookie => result = result.addCookie(cookie))
-    println("Post" + result.toRequest)
-    println(result.toRequest.getCookies)
     result
   }
 
@@ -97,6 +128,8 @@ object CodeEvalCrowler extends App {
   }
 
   def cookies(response : Response) : mutable.Buffer[Cookie] = {
+    if (response.getHeader("Set-Cookie") == null) return mutable.Buffer[Cookie]()
+
     response.getHeaders("Set-Cookie").map((header: String) => {
       println(header)
       val split = header.split(";").map(_.trim)
