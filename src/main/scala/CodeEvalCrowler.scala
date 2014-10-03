@@ -54,15 +54,24 @@ object CodeEvalCrowler extends App {
   val params = Map("username" -> args(0), "password" -> args(1), "email_not_activated" -> "email", "next" -> "")
 
   // 302 location http://www.codeeval.com/dashboard/
-  val request4 = addCookies(cookies(response3), url("https://www.codeeval.com/accounts/login/").POST << params <:<
-    headers)
+  val request4 = addCookies(cookies(response3), url("https://www.codeeval.com/accounts/login/").POST << params <:< headers)
   val response4 = doRequest(request4)
 
   // 301
-  val request5 = addCookies(cookies(response4), url("http://www.codeeval.com/dashboard/") <:< headers)
+  val headers2 = Map(
+    "User-Agent" -> "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/37.0.2062.120 Chrome/37.0.2062.120 Safari/537.36",
+    "Content-Type" -> "text/html; charset=utf-8",
+    "Accept" -> "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Encoding" -> "gzip,deflate",
+    "Accept-Language" -> "en-US,en;q=0.8,ru;q=0.6,uk;q=0.4",
+    "Cache-Control" -> "max-age=0",
+    "Connection" -> "keep-alive"
+  )
+  val request5 = addCookies(cookies(response4), url(response4.getHeader("Location")) <:< headers2)
   val response5 = doRequest(request5)
 
-  val request6 = addCookies(cookies(response4), url("https://www.codeeval.com/dashboard/").secure)
+  // 200 OK DASHBOARD body !!!
+  val request6 = addCookies(cookies(response4), url(response5.getHeader("Location")) <:< headers2)
   val response6 = doRequest(request6)
 
 
@@ -92,7 +101,7 @@ object CodeEvalCrowler extends App {
 
   def showResponse(response: Response) = {
     println(s"Response ===========================")
-    println("Uri: " + response.getUri)
+    //println("Uri: " + response.getUri)
     println("Status code: " + response.getStatusCode)
     println("Content type: " + response.getContentType)
 
