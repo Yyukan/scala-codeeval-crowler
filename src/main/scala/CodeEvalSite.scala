@@ -63,7 +63,7 @@ object CodeEvalSite {
     val request4 = addCookies(cookies(response3), url("https://www.codeeval.com/accounts/login/").POST << params <:< headers)
     val response4 = doRequest(request4)
 
-    // save cookie for furthe usage
+    // save cookie for further usage
     requestCookies = cookies(response4)
     // 301
     val request5 = addCookies(requestCookies, url(response4.getHeader("Location")) <:< requestHeaders)
