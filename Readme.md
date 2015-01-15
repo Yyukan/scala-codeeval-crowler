@@ -3,10 +3,8 @@ Code Eval solutions downloader
 
 Simple application to grab your code solutions from http://www.codeeval.com and store locally
 
-CodeEvalSelenium located in test folder uses Chrome Web Driver to login on CodeEval site,
-browse all 'Solved' solutions and store them locally.
+CodeEvalCrowler performs login on the CodeEval site via Chrome Web Driver,
+browses all 'Solved' solutions and stores them locally in 'challenges' folder.
 
-P.S. CodeEval username and password are passed as VM parameters
-
-CodeEvalCrowler does nothing except login to CodeEval challenges page - this is dead end.
+P.S. CodeEval username and password are passed as command line parameters
 
