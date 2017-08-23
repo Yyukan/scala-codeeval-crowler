@@ -8,4 +8,4 @@ browses all 'Solved' solutions and stores them locally in 'challenges' folder.
 
 P.S. CodeEval username and password are passed as command line parameters
 
-sbt "runMain CodeEvalCrowler <username> <password>"
+sbt "runMain CodeEvalCrowler codeeval_username codeeval_password>"
